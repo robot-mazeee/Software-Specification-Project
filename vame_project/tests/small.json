@@ -1,0 +1,31 @@
+{
+  "description": "VAME small test suite — 15 cases, single policy, all three outcomes",
+  "policy": [
+    {"type": "Allow", "matcher": {"op": "UserIs",     "name":   "alice"},            "priority": 10},
+    {"type": "Deny",  "matcher": {"op": "UserIs",     "name":   "bob"},              "priority": 10},
+    {"type": "Allow", "matcher": {"op": "ActionIs",   "act":    "read"},             "priority":  5},
+    {"type": "Deny",  "matcher": {"op": "ResourceIs", "res":    "/admin"},           "priority": 20},
+    {"type": "Allow", "matcher": {"op": "And",
+                                  "left":  {"op": "UserIs",   "name": "carol"},
+                                  "right": {"op": "ActionIs", "act":  "read"}},      "priority": 15},
+    {"type": "Deny",  "matcher": {"op": "Not",
+                                  "inner": {"op": "UserIs",   "name": "alice"}},     "priority":  1}
+  ],
+  "cases": [
+    {"user": "alice", "action": "read",  "resource": "/reports", "expected": "AllowD",  "note": "Alice Allow wins at 10"},
+    {"user": "alice", "action": "write", "resource": "/reports", "expected": "AllowD",  "note": "Alice Allow wins; Not(alice) Deny at 1 loses"},
+    {"user": "alice", "action": "read",  "resource": "/admin",   "expected": "DenyD",   "note": "/admin Deny at 20 beats Alice Allow at 10"},
+    {"user": "bob",   "action": "write", "resource": "/reports", "expected": "DenyD",   "note": "Bob Deny at 10; no Allow at >=10"},
+    {"user": "bob",   "action": "read",  "resource": "/reports", "expected": "DenyD",   "note": "Bob Deny(10) beats Allow(read,5)"},
+    {"user": "bob",   "action": "read",  "resource": "/admin",   "expected": "DenyD",   "note": "/admin Deny at 20 is max"},
+    {"user": "carol", "action": "read",  "resource": "/reports", "expected": "AllowD",  "note": "Carol+read Allow at 15"},
+    {"user": "carol", "action": "write", "resource": "/reports", "expected": "DenyD",   "note": "Not(alice) Deny at 1 only match; DenyD"},
+    {"user": "carol", "action": "read",  "resource": "/admin",   "expected": "DenyD",   "note": "/admin Deny at 20 beats carol+read Allow at 15"},
+    {"user": "dave",  "action": "read",  "resource": "/reports", "expected": "AllowD",  "note": "Allow(read,5) beats Deny(not-alice,1)"},
+    {"user": "dave",  "action": "write", "resource": "/secret",  "expected": "DenyD",   "note": "Only Not(alice) Deny at 1 matches"},
+    {"user": "eve",   "action": "write", "resource": "/reports", "expected": "DenyD",   "note": "Not(alice) Deny matches"},
+    {"user": "alice", "action": "read",  "resource": "/reports", "expected": "AllowD",  "note": "Repeat alice to check stability"},
+    {"user": "nobody","action": "delete","resource": "/secret",  "expected": "DenyD",   "note": "Not(alice) Deny at 1"},
+    {"user": "alice", "action": "read",  "resource": "/admin",   "expected": "DenyD",   "note": "alice vs /admin Deny"}
+  ]
+}

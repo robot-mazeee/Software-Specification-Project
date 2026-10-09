@@ -1,0 +1,385 @@
+{
+  "description": "VAME medium test suite \u2014 40 cases covering priority ties, NNF matchers, empty policy, deep Or/And/Not matchers",
+  "policy": [
+    {
+      "type": "Allow",
+      "matcher": {
+        "op": "UserIs",
+        "name": "alice"
+      },
+      "priority": 10
+    },
+    {
+      "type": "Deny",
+      "matcher": {
+        "op": "UserIs",
+        "name": "bob"
+      },
+      "priority": 10
+    },
+    {
+      "type": "Allow",
+      "matcher": {
+        "op": "ActionIs",
+        "act": "read"
+      },
+      "priority": 5
+    },
+    {
+      "type": "Deny",
+      "matcher": {
+        "op": "ResourceIs",
+        "res": "/admin"
+      },
+      "priority": 20
+    },
+    {
+      "type": "Allow",
+      "matcher": {
+        "op": "And",
+        "left": {
+          "op": "UserIs",
+          "name": "carol"
+        },
+        "right": {
+          "op": "ActionIs",
+          "act": "read"
+        }
+      },
+      "priority": 15
+    },
+    {
+      "type": "Deny",
+      "matcher": {
+        "op": "Not",
+        "inner": {
+          "op": "UserIs",
+          "name": "alice"
+        }
+      },
+      "priority": 1
+    },
+    {
+      "type": "Allow",
+      "matcher": {
+        "op": "Or",
+        "left": {
+          "op": "UserIs",
+          "name": "dave"
+        },
+        "right": {
+          "op": "UserIs",
+          "name": "erin"
+        }
+      },
+      "priority": 12
+    },
+    {
+      "type": "Deny",
+      "matcher": {
+        "op": "And",
+        "left": {
+          "op": "ActionIs",
+          "act": "delete"
+        },
+        "right": {
+          "op": "Not",
+          "inner": {
+            "op": "UserIs",
+            "name": "alice"
+          }
+        }
+      },
+      "priority": 25
+    },
+    {
+      "type": "Allow",
+      "matcher": {
+        "op": "AnyReq"
+      },
+      "priority": 2
+    }
+  ],
+  "cases": [
+    {
+      "user": "alice",
+      "action": "read",
+      "resource": "/reports",
+      "expected": "AllowD",
+      "note": "Alice Allow(10) wins"
+    },
+    {
+      "user": "alice",
+      "action": "delete",
+      "resource": "/reports",
+      "expected": "AllowD",
+      "note": "Alice Allow(10); delete+not-alice Deny doesn't match alice"
+    },
+    {
+      "user": "alice",
+      "action": "read",
+      "resource": "/admin",
+      "expected": "DenyD",
+      "note": "/admin Deny(20) beats Alice Allow(10)"
+    },
+    {
+      "user": "alice",
+      "action": "delete",
+      "resource": "/admin",
+      "expected": "DenyD",
+      "note": "/admin Deny(20) beats Alice Allow(10)"
+    },
+    {
+      "user": "bob",
+      "action": "read",
+      "resource": "/reports",
+      "expected": "DenyD",
+      "note": "Bob Deny(10) beats Allow(read,5)"
+    },
+    {
+      "user": "bob",
+      "action": "write",
+      "resource": "/reports",
+      "expected": "DenyD",
+      "note": "Bob Deny(10) wins"
+    },
+    {
+      "user": "bob",
+      "action": "delete",
+      "resource": "/x",
+      "expected": "DenyD",
+      "note": "delete+not-alice Deny(25) is max"
+    },
+    {
+      "user": "bob",
+      "action": "read",
+      "resource": "/admin",
+      "expected": "DenyD",
+      "note": "/admin Deny(20) beats Bob Deny(10)... wait both DenyD"
+    },
+    {
+      "user": "carol",
+      "action": "read",
+      "resource": "/reports",
+      "expected": "AllowD",
+      "note": "carol+read Allow(15)"
+    },
+    {
+      "user": "carol",
+      "action": "write",
+      "resource": "/reports",
+      "expected": "AllowD",
+      "note": "AnyReq Allow(2) beats Not(alice) Deny(1)"
+    },
+    {
+      "user": "carol",
+      "action": "delete",
+      "resource": "/reports",
+      "expected": "DenyD",
+      "note": "delete+not-alice Deny(25) is max"
+    },
+    {
+      "user": "carol",
+      "action": "read",
+      "resource": "/admin",
+      "expected": "DenyD",
+      "note": "/admin Deny(20) beats carol+read Allow(15)"
+    },
+    {
+      "user": "dave",
+      "action": "read",
+      "resource": "/reports",
+      "expected": "AllowD",
+      "note": "Or(dave,erin) Allow(12) > Allow(read,5) > Deny(not-alice,1)"
+    },
+    {
+      "user": "dave",
+      "action": "write",
+      "resource": "/reports",
+      "expected": "AllowD",
+      "note": "Or(dave,erin) Allow(12)"
+    },
+    {
+      "user": "dave",
+      "action": "delete",
+      "resource": "/reports",
+      "expected": "DenyD",
+      "note": "delete+not-alice Deny(25) beats Or(dave) Allow(12)"
+    },
+    {
+      "user": "dave",
+      "action": "read",
+      "resource": "/admin",
+      "expected": "DenyD",
+      "note": "/admin Deny(20) beats Or(dave) Allow(12)"
+    },
+    {
+      "user": "erin",
+      "action": "read",
+      "resource": "/reports",
+      "expected": "AllowD",
+      "note": "Or(dave,erin) Allow(12) wins"
+    },
+    {
+      "user": "erin",
+      "action": "delete",
+      "resource": "/x",
+      "expected": "DenyD",
+      "note": "delete+not-alice Deny(25) is max"
+    },
+    {
+      "user": "frank",
+      "action": "read",
+      "resource": "/reports",
+      "expected": "AllowD",
+      "note": "Allow(read,5) > AnyReq Allow(2) > Deny(not-alice,1)"
+    },
+    {
+      "user": "frank",
+      "action": "write",
+      "resource": "/reports",
+      "expected": "AllowD",
+      "note": "AnyReq Allow(2) > Deny(not-alice,1)"
+    },
+    {
+      "user": "frank",
+      "action": "delete",
+      "resource": "/reports",
+      "expected": "DenyD",
+      "note": "delete+not-alice Deny(25) is max"
+    },
+    {
+      "user": "frank",
+      "action": "read",
+      "resource": "/admin",
+      "expected": "DenyD",
+      "note": "/admin Deny(20) is max"
+    },
+    {
+      "user": "alice",
+      "action": "read",
+      "resource": "/admin",
+      "expected": "DenyD",
+      "note": "sanity repeat"
+    },
+    {
+      "user": "alice",
+      "action": "write",
+      "resource": "/admin",
+      "expected": "DenyD",
+      "note": "/admin Deny(20) beats Alice Allow(10)"
+    },
+    {
+      "user": "carol",
+      "action": "read",
+      "resource": "/reports",
+      "expected": "AllowD",
+      "note": "sanity repeat carol"
+    },
+    {
+      "user": "dave",
+      "action": "read",
+      "resource": "/admin",
+      "expected": "DenyD",
+      "note": "/admin Deny(20) beats Or(dave) Allow(12)"
+    },
+    {
+      "user": "erin",
+      "action": "write",
+      "resource": "/admin",
+      "expected": "DenyD",
+      "note": "/admin Deny(20) beats Or(erin) Allow(12)"
+    },
+    {
+      "user": "nobody",
+      "action": "read",
+      "resource": "/x",
+      "expected": "AllowD",
+      "note": "Allow(read,5) > AnyReq(2) > Deny(not-alice,1)"
+    },
+    {
+      "user": "nobody",
+      "action": "write",
+      "resource": "/x",
+      "expected": "AllowD",
+      "note": "AnyReq Allow(2) > Deny(not-alice,1)"
+    },
+    {
+      "user": "nobody",
+      "action": "delete",
+      "resource": "/x",
+      "expected": "DenyD",
+      "note": "delete+not-alice Deny(25)"
+    },
+    {
+      "user": "alice",
+      "action": "read",
+      "resource": "/x",
+      "expected": "AllowD",
+      "note": "Alice Allow(10) > Allow(read,5)"
+    },
+    {
+      "user": "bob",
+      "action": "delete",
+      "resource": "/admin",
+      "expected": "DenyD",
+      "note": "delete+not-alice Deny(25) is max"
+    },
+    {
+      "user": "carol",
+      "action": "delete",
+      "resource": "/admin",
+      "expected": "DenyD",
+      "note": "delete+not-alice Deny(25) is max; /admin Deny(20) also matches"
+    },
+    {
+      "user": "dave",
+      "action": "delete",
+      "resource": "/admin",
+      "expected": "DenyD",
+      "note": "delete+not-alice Deny(25) is max"
+    },
+    {
+      "user": "erin",
+      "action": "delete",
+      "resource": "/admin",
+      "expected": "DenyD",
+      "note": "delete+not-alice Deny(25) is max"
+    },
+    {
+      "user": "alice",
+      "action": "delete",
+      "resource": "/x",
+      "expected": "AllowD",
+      "note": "alice not matched by delete+not-alice; Alice Allow(10) wins"
+    },
+    {
+      "user": "alice",
+      "action": "write",
+      "resource": "/x",
+      "expected": "AllowD",
+      "note": "Alice Allow(10)"
+    },
+    {
+      "user": "dave",
+      "action": "write",
+      "resource": "/admin",
+      "expected": "DenyD",
+      "note": "/admin Deny(20) beats Or(dave) Allow(12)"
+    },
+    {
+      "user": "erin",
+      "action": "read",
+      "resource": "/admin",
+      "expected": "DenyD",
+      "note": "/admin Deny(20) beats Or(erin) Allow(12)"
+    },
+    {
+      "user": "frank",
+      "action": "write",
+      "resource": "/admin",
+      "expected": "DenyD",
+      "note": "/admin Deny(20) beats AnyReq Allow(2)"
+    }
+  ]
+}

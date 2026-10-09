@@ -1,0 +1,15 @@
+{
+  "description": "Policy mutation invalidates cached lookup results",
+  "initialRules": [
+    {"type": "Allow", "matcher": {"op": "UserIs", "name": "alice"}, "priority": 10}
+  ],
+  "operations": [
+    {"op": "lookup", "request": {"user": "alice", "action": "read", "resource": "/reports"}},
+    {"op": "lookup", "request": {"user": "bob", "action": "read", "resource": "/reports"}},
+    {"op": "add", "rule": {"type": "Deny", "matcher": {"op": "ResourceIs", "res": "/admin"}, "priority": 20}},
+    {"op": "lookup", "request": {"user": "alice", "action": "read", "resource": "/admin"}},
+    {"op": "remove", "index": 1},
+    {"op": "lookup", "request": {"user": "alice", "action": "read", "resource": "/admin"}}
+  ],
+  "expectedDecisions": ["AllowD", "NoMatch", "DenyD", "AllowD"]
+}

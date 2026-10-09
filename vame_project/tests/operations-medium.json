@@ -1,0 +1,18 @@
+{
+  "description": "Priority, tie-breaking, and mutations through VameCache",
+  "initialRules": [
+    {"type": "Allow", "matcher": {"op": "ActionIs", "act": "read"}, "priority": 5},
+    {"type": "Deny", "matcher": {"op": "UserIs", "name": "bob"}, "priority": 10},
+    {"type": "Allow", "matcher": {"op": "UserIs", "name": "carol"}, "priority": 12}
+  ],
+  "operations": [
+    {"op": "lookup", "request": {"user": "alice", "action": "read", "resource": "/reports"}},
+    {"op": "lookup", "request": {"user": "bob", "action": "read", "resource": "/reports"}},
+    {"op": "add", "rule": {"type": "Deny", "matcher": {"op": "ActionIs", "act": "read"}, "priority": 5}},
+    {"op": "lookup", "request": {"user": "alice", "action": "read", "resource": "/reports"}},
+    {"op": "remove", "index": 3},
+    {"op": "lookup", "request": {"user": "alice", "action": "read", "resource": "/reports"}},
+    {"op": "lookup", "request": {"user": "carol", "action": "write", "resource": "/reports"}}
+  ],
+  "expectedDecisions": ["AllowD", "DenyD", "DenyD", "AllowD", "AllowD"]
+}
