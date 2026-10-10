@@ -210,15 +210,16 @@ lemma deny_not_beats_allow_is_lower(deny: Rule, allow: Rule)
 
 function eval(p: Policy, q: Request): Decision
 {
-  // TODO (handout §1.1): implement the priority semantics above.
-  NoMatch
+  match bestRule(p, q)
+  case AllowD   => AllowD
+  case DenyD    => DenyD
+  case NoMatch  => NoMatch
 }
 
 lemma eval_total(p: Policy, q: Request)
   ensures eval(p, q) == AllowD || eval(p, q) == DenyD || eval(p, q) == NoMatch
 {
-  // TODO (handout §1.1): trivially provable once `eval` is total; Dafny
-  // typically discharges it automatically.
+  // Automatic
 }
 
 
