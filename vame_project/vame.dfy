@@ -216,7 +216,7 @@ function eval(p: Policy, q: Request): Decision
 lemma eval_total(p: Policy, q: Request)
   ensures eval(p, q) == AllowD || eval(p, q) == DenyD || eval(p, q) == NoMatch
 {
-  
+  // Automatic
 }
 
 
