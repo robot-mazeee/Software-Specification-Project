@@ -232,13 +232,26 @@ lemma eval_total(p: Policy, q: Request)
 // -----------------------------------------------------------------------------
 
 lemma add_low_priority_stable(p: Policy, r: Rule, q: Request)
-  // TODO (handout §1.2): design the precondition. The conclusion below is
-  // intentionally not a tautology of `r.Deny?` or similar — the interesting
-  // case is when the new rule's matcher does match `q`.
-  // requires ...
+  // If the added rule matches, an existing matching rule must exist.
+  requires matches(ruleMatcher(r), q) ==> bestRule(p.rules, q).Some?
+
+  // The added rule has strictly lower priority than 
+  // every existing rule that matches the request.
+  requires matches(ruleMatcher(r), q) ==>
+    (forall i: int ::
+      0 <= i < |p.rules| &&
+      matches(ruleMatcher(p.rules[i]), q)
+      ==> rulePriority(r) < rulePriority(p.rules[i]))
+
   ensures eval(Pol(p.rules + [r]), q) == eval(p, q)
 {
-  // TODO (handout §1.2): prove.
+  if matches(ruleMatcher(r), q) {
+    bestRule_is_best(p.rules, q);
+    assert !beats(r, bestRule(p.rules, q).value);
+    bestRule_append_dominated_decision(p.rules, r, q);
+  } else {
+    bestRule_append_nonmatching(p.rules, r, q);
+  }
 }
 
 
