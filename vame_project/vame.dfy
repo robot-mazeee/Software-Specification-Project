@@ -273,9 +273,9 @@ predicate isNNF(m: Matcher)
 {
   match m
   case AnyReq | UserIs(_) | ActionIs(_) | ResourceIs(_) => true
-  case And(l, r) => false //TODO
-  case Or(l, r) => false //TODO
-  case Not(inner) => false //TODO
+  case And(l, r) => isNNF(l) && isNNF(r)
+  case Or(l, r) => isNNF(l) && isNNF(r)
+  case Not(inner) => isAtomic(inner)
 }
 
 // The lexicographic decreases pairs make the mutual calls terminating.
@@ -289,9 +289,9 @@ function normalizeNot(inner: Matcher): Matcher
   case UserIs(n) => Not(UserIs(n))
   case ActionIs(a) => Not(ActionIs(a))
   case ResourceIs(r) => Not(ResourceIs(r))
-  case And(l, r) => inner // TODO
-  case Or(l, r) => inner  // TODO
-  case Not(inner2) => inner // TODO: eliminate the double negation
+  case And(l, r) => Or(normalizeNot(l), normalizeNot(r))
+  case Or(l, r) => And(normalizeNot(l), normalizeNot(r))
+  case Not(inner2) => normalize(inner2)
 }
 
 function normalize(m: Matcher): Matcher
@@ -299,21 +299,20 @@ function normalize(m: Matcher): Matcher
 {
   match m
   case AnyReq | UserIs(_) | ActionIs(_) | ResourceIs(_) => m
-  case And(l, r) => m // TODO: normalize both children
-  case Or(l, r) => m  // TODO: normalize both children
-  case Not(inner) => m // TODO: call normalizeNot(inner)
+  case And(l, r) => And(normalize(l), normalize(r))
+  case Or(l, r) => Or(normalize(l), normalize(r))
+  case Not(inner) => normalizeNot(inner)
 }
 
 lemma normalizeNot_sound(inner: Matcher, r: Request)
   ensures matches(normalizeNot(inner), r) == !matches(inner, r)
   decreases inner, 0
 {
-  assume {:axiom} false; // TODO: REMOVE this line!
   //Structural cases mirror normalizeNot.
   match inner {
-    case And(l, rgt) => {}
-    case Or(l, rgt)  => {}
-    case Not(inner2) => {}
+    case And(l, rgt) => {normalizeNot_sound(l, r); normalizeNot_sound(rgt, r);}
+    case Or(l, rgt)  => {normalizeNot_sound(l, r); normalizeNot_sound(rgt, r);}
+    case Not(inner2) => {normalize_sound(inner2, r);}
     case _ => {}
   }
 }
@@ -322,12 +321,11 @@ lemma normalize_sound(m: Matcher, r: Request)
   ensures matches(normalize(m), r) == matches(m, r)
   decreases m, 1
 {
-  assume {:axiom} false; // TODO: REMOVE this line!
   //Structural cases mirror normalize.
     match m {
-    case And(l, rgt) => {}
-    case Or(l, rgt)  => {}
-    case Not(inner2) => {}
+    case And(l, rgt) => {normalize_sound(l, r); normalize_sound(rgt, r);}
+    case Or(l, rgt)  => {normalize_sound(l, r); normalize_sound(rgt, r);}
+    case Not(inner2) => {normalizeNot_sound(inner2, r);}
     case _ => {}
     }
 }
@@ -336,12 +334,11 @@ lemma normalizeNot_is_nnf(inner: Matcher)
   ensures isNNF(normalizeNot(inner))
   decreases inner, 0
 {
-  assume {:axiom} false; // TODO: REMOVE this line!
-  // TODO: structural cases mirror normalizeNot.
+  // Structural cases mirror normalizeNot.
     match inner {
-    case And(l, r)   => {}
-    case Or(l, r)    => {}
-    case Not(inner2) => {}
+    case And(l, r)   => {normalizeNot_is_nnf(l); normalizeNot_is_nnf(r);}
+    case Or(l, r)    => {normalizeNot_is_nnf(l); normalizeNot_is_nnf(r);}
+    case Not(inner2) => {normalize_is_nnf(inner2);}
     case _ => {}
   }
 }
@@ -350,7 +347,12 @@ lemma normalize_is_nnf(m: Matcher)
   ensures isNNF(normalize(m))
   decreases m, 1
 {
-  assume {:axiom} false; // TODO: structural cases mirror normalize.
+  match m {
+    case And(l, r)   => {normalize_is_nnf(l); normalize_is_nnf(r);}
+    case Or(l, r)    => {normalize_is_nnf(l); normalize_is_nnf(r);}
+    case Not(inner2) => {normalizeNot_is_nnf(inner2);}
+    case _ => {}
+  }
 }
 
 
