@@ -374,16 +374,27 @@ lemma normalize_is_nnf(m: Matcher)
 
 lemma allow_has_witness(p: Policy, q: Request)
   requires eval(p, q) == AllowD
-  // TODO (handout §1.4): state the existential conclusion described above.
-  // The supplied facts above establish the winning rule's decision, membership,
-  // and maximality. Write the stated existential / universal conclusion.
-  // ensures ...
+  ensures exists i :: 0 <= i < |p.rules|
+    && p.rules[i].Allow?
+    && matches(ruleMatcher(p.rules[i]), q)
+    && (forall j :: 0 <= j < |p.rules| ==> 
+      !(rulePriority(p.rules[j]) > rulePriority(p.rules[i]) && p.rules[j].Deny? 
+      && matches(ruleMatcher(p.rules[j]), q)))
 {
   var winner := bestRule(p.rules, q);
   eval_allow_selects_allow(p, q);
   bestRule_in_list(p.rules, q);
   bestRule_is_best(p.rules, q);
-  // TODO: assert the appropriate universal with winner rule.
+
+  var wi :| 0 <= wi < |p.rules| && p.rules[wi] == winner;
+
+  forall j | 0 <= j < |p.rules| 
+      && p.rules[j].Deny?
+      && matches(ruleMatcher(p.rules[j]), q) 
+    ensures rulePriority(p.rules[j]) < rulePriority(winner)
+  {
+    deny_not_beats_allow_is_lower(p.rules[j], winner);
+  }
 }
 
 
