@@ -409,11 +409,15 @@ lemma allow_has_witness(p: Policy, q: Request)
 // -----------------------------------------------------------------------------
 
 function evalAcc(rules: seq<Rule>, q: Request, best: Option<Rule>): Decision
+  decreases |rules|
 {
-  // TODO (handout §1.5): single left-to-right pass; `best` is the
-  // highest-priority matching rule found so far (with Deny winning ties),
-  // or `None` if no matching rule has yet been seen.
-  NoMatch
+  if |rules| == 0 then 
+    if best.None? then None
+    else toDecision(best)
+  else if matches(ruleMatcher(rules[0]), q) 
+      && (best.None? || beats(rules[0], best)) then
+    evalAcc(rules[1..], q, Some(rules[0]))
+  else evalAcc(rules[1..], q, best)
 }
 
 // This is the intended strengthened induction hypothesis. `combineBest_assoc`
@@ -423,7 +427,7 @@ lemma evalAcc_eq_bestRule(rules: seq<Rule>, q: Request, best: Option<Rule>)
           toDecision(combineBest(best, bestRule(rules, q)))
   decreases |rules|
 {
-  assume {:axiom} false; // TODO (handout §1.5): induct on rules.
+  // TODO
 }
 
 lemma evalAcc_eq_eval(p: Policy, q: Request)
