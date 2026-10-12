@@ -386,14 +386,14 @@ lemma allow_has_witness(p: Policy, q: Request)
   bestRule_in_list(p.rules, q);
   bestRule_is_best(p.rules, q);
 
-  var wi :| 0 <= wi < |p.rules| && p.rules[wi] == winner;
+  var wi :| 0 <= wi < |p.rules| && p.rules[wi] == winner.value;
 
   forall j | 0 <= j < |p.rules| 
       && p.rules[j].Deny?
       && matches(ruleMatcher(p.rules[j]), q) 
-    ensures rulePriority(p.rules[j]) < rulePriority(winner)
+    ensures rulePriority(p.rules[j]) < rulePriority(winner.value)
   {
-    deny_not_beats_allow_is_lower(p.rules[j], winner);
+    deny_not_beats_allow_is_lower(p.rules[j], winner.value);
   }
 }
 
@@ -412,28 +412,65 @@ function evalAcc(rules: seq<Rule>, q: Request, best: Option<Rule>): Decision
   decreases |rules|
 {
   if |rules| == 0 then 
-    if best.None? then None
-    else toDecision(best)
-  else if matches(ruleMatcher(rules[0]), q) 
-      && (best.None? || beats(rules[0], best)) then
-    evalAcc(rules[1..], q, Some(rules[0]))
-  else evalAcc(rules[1..], q, best)
+    toDecision(best)
+  else if matches(ruleMatcher(rules[0]), q) then
+    evalAcc(rules[1..], q, combineBest(best, Some(rules[0])))
+  else 
+    evalAcc(rules[1..], q, best)
 }
 
 // This is the intended strengthened induction hypothesis. `combineBest_assoc`
 // is supplied above; you must prove this lemma after replacing evalAcc's body.
+
+
+lemma combineBest_none_right(best: Option<Rule>)
+  ensures combineBest(best, None) == best
+{
+  // Automatic
+}
+
+lemma bestRule_none_eq_none(rules: seq<Rule>, q: Request)
+  ensures bestRule([], q) == None
+{
+  // Automatic
+}
+
+/*
+Sketch:
+evalAcc(rules, q, best) ==> 
+  1. evalAcc([], q, best) == toDecision(best)
+  2. evalAcc(rules, q, best) == eval(rules[1..], q, combinesBest(rules[0], best))
+  3. combinesBest(best, bestRule(rules, q)) == bestRule(rules, q)
+*/
+
 lemma evalAcc_eq_bestRule(rules: seq<Rule>, q: Request, best: Option<Rule>)
   ensures evalAcc(rules, q, best) ==
           toDecision(combineBest(best, bestRule(rules, q)))
   decreases |rules|
 {
-  // TODO
+  if |rules| == 0 {
+    bestRule_none_eq_none(rules, q);
+    combineBest_none_right(best);
+  }
+  else {
+    var r0 := rules[0];
+    var rest := rules[1..];
+    if matches(ruleMatcher(r0), q) {
+      evalAcc_eq_bestRule(rest, q, combineBest(Some(r0), best));
+    } 
+  }
 }
 
+/* 
+Sketch: 
+ - evalAcc(p.rules, q, None) == toDecision(bestRule(p.rules, q)) via evalAcc_eq_bestRule
+ - eval(p, q) == toDecision(bestRule(p.rules, q)) by def
+*/
 lemma evalAcc_eq_eval(p: Policy, q: Request)
   ensures evalAcc(p.rules, q, None) == eval(p, q)
 {
-  // TODO (handout §1.5): derive this from evalAcc_eq_bestRule with best := None.
+  evalAcc_eq_bestRule(p.rules, q, None);
+
 }
 
 
