@@ -322,7 +322,7 @@ lemma normalize_sound(m: Matcher, r: Request)
   decreases m, 1
 {
   //Structural cases mirror normalize.
-    match m {
+  match m {
     case And(l, rgt) => {normalize_sound(l, r); normalize_sound(rgt, r);}
     case Or(l, rgt)  => {normalize_sound(l, r); normalize_sound(rgt, r);}
     case Not(inner2) => {normalizeNot_sound(inner2, r);}
@@ -335,7 +335,7 @@ lemma normalizeNot_is_nnf(inner: Matcher)
   decreases inner, 0
 {
   // Structural cases mirror normalizeNot.
-    match inner {
+  match inner {
     case And(l, r)   => {normalizeNot_is_nnf(l); normalizeNot_is_nnf(r);}
     case Or(l, r)    => {normalizeNot_is_nnf(l); normalizeNot_is_nnf(r);}
     case Not(inner2) => {normalize_is_nnf(inner2);}
@@ -377,8 +377,8 @@ lemma allow_has_witness(p: Policy, q: Request)
   ensures exists i :: 0 <= i < |p.rules|
     && p.rules[i].Allow?
     && matches(ruleMatcher(p.rules[i]), q)
-    && (forall j :: 0 <= j < |p.rules| ==> 
-      !(rulePriority(p.rules[j]) > rulePriority(p.rules[i]) && p.rules[j].Deny? 
+    && (forall j :: 0 <= j < |p.rules| ==>
+      !(p.rules[j].Deny? && rulePriority(p.rules[j]) >= rulePriority(p.rules[i])
       && matches(ruleMatcher(p.rules[j]), q)))
 {
   var winner := bestRule(p.rules, q);
@@ -386,14 +386,14 @@ lemma allow_has_witness(p: Policy, q: Request)
   bestRule_in_list(p.rules, q);
   bestRule_is_best(p.rules, q);
 
-  var wi :| 0 <= wi < |p.rules| && p.rules[wi] == winner.value;
+  var i :| 0 <= i < |p.rules| && p.rules[i] == winner.value;
 
-  forall j | 0 <= j < |p.rules| 
-      && p.rules[j].Deny?
-      && matches(ruleMatcher(p.rules[j]), q) 
-    ensures rulePriority(p.rules[j]) < rulePriority(winner.value)
+  forall j | 0 <= j < |p.rules| && p.rules[j].Deny? && matches(ruleMatcher(p.rules[j]), q)
+    ensures !(p.rules[j].Deny?
+      && rulePriority(p.rules[j]) >= rulePriority(p.rules[i])
+      && matches(ruleMatcher(p.rules[j]), q))
   {
-    deny_not_beats_allow_is_lower(p.rules[j], winner.value);
+    deny_not_beats_allow_is_lower(p.rules[j], p.rules[i]);
   }
 }
 
