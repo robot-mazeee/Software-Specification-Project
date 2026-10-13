@@ -491,7 +491,15 @@ method batchDecide(p: Policy, qs: array<Request>) returns (out: array<Decision>)
   ensures forall i :: 0 <= i < qs.Length ==> out[i] == eval(p, qs[i])
 {
   out := new Decision[qs.Length](_ => NoMatch);
-  // TODO (handout §2.1): replace with a verified while-loop.
+  var i := 0;
+
+  while (i < qs.Length)
+    invariant 0 <= i <= qs.Length
+    invariant forall j :: 0 <= j < i ==> out[j] == eval(p, qs[j])
+  {
+    out[i] := eval(p, qs[i]);
+    i := i + 1;
+  }
 }
 
 
