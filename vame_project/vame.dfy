@@ -576,18 +576,30 @@ class PolicyStore {
     ensures  Repr == old(Repr)   // remove never allocates
     ensures  rules == old(rules[..i]) + old(rules[i+1..])
   {
-    assume {:axiom} false; // TODO (handout §2.2): remove the i-th rule.
+    var j := i;
+    while j < count - 1 
+      invariant i <= j <= count - 1 
+      invariant count == old(count)
+      invariant forall k :: 0 <= k < i ==> data[k] == old(data[k])
+      invariant forall k :: i <= k < j ==> data[k] == old(data[k+1])
+      modifies data
+    {
+      data[j] := data[j+1];
+      j := j + 1;
+    }
+    count := count - 1;
+    rules := rules[..i] + rules[i+1..];
   }
 
   method lookup(q: Request) returns (d: Decision)
     requires Valid()
     ensures  d == eval(Pol(rules), q)
   {
-    assume {:axiom} false; // TODO (handout §2.2): may either evaluate over rules directly, or do
+    // TODO (handout §2.2): may either evaluate over rules directly, or do
     // an imperative scan with a loop invariant; both are acceptable.
     // Once you have a concrete representation, replace with e.g.:
-    //   d := eval(Pol(data[..count]), q);
-    d := NoMatch;
+    d := eval(Pol(data[..count]), q);
+    // d := NoMatch;
   }
 }
 
