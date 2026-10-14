@@ -517,18 +517,16 @@ class PolicyStore {
   ghost var Repr: set<object>
 
   // --- Required array representation ---
-  // var data: array<Rule>
-  // var count: nat   // number of valid entries in data[0..count]
+  var data: array<Rule>
+  var count: nat   // number of valid entries in data[0..count]
 
   ghost predicate Valid()
-    reads this, Repr
+    reads this, Repr, data
   {
-    // TODO (handout §2.2): the standard dynamic-frames skeleton is
-    //   this in Repr
-    //   && (representation pieces are in Repr)
-    //   && (concrete bounds: count <= data.Length, etc.)
-    //   && (ghost <-> concrete: rules matches the chosen representation)
-    this in Repr
+    this in Repr &&
+    data in Repr &&
+    0 <= count <= data.Length &&
+    rules == data[..count]
   }
 
   constructor()
@@ -536,17 +534,39 @@ class PolicyStore {
     ensures rules == []
   {
     rules := [];
-    Repr := {this};
-    // TODO (handout §2.2): initialise the concrete representation.
+    count := 0;
+    data := new Rule[count];
+    Repr := {this, data};
   }
 
   method add(r: Rule)
     requires Valid()
     modifies Repr
-    ensures  Valid() && fresh(Repr - old(Repr))
-    ensures  rules == old(rules) + [r]
+    ensures Valid() && fresh(Repr - old(Repr))
+    ensures rules == old(rules) + [r]
   {
-    assume {:axiom} false; // TODO (handout §2.2): append; may reallocate the backing array.
+    if count == data.Length {
+      var oldData := data;
+      var newData := new Rule[count + 1];
+
+      var i := 0;
+      while i < count
+        invariant 0 <= i <= count
+        invariant forall j :: 0 <= j < i ==> newData[j] == oldData[j]
+        modifies newData
+      {
+        newData[i] := oldData[i];
+        i := i + 1;
+      }
+      newData[count] := r;
+      data := newData;
+      Repr := (Repr - {oldData}) + {newData};
+    } else {
+      data[count] := r;
+    }
+
+    count := count + 1;
+    rules := rules + [r];
   }
 
   method remove(i: nat)
