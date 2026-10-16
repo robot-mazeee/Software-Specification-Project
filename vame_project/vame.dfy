@@ -535,8 +535,13 @@ class PolicyStore {
   {
     rules := [];
     count := 0;
-    data := new Rule[count];
-    Repr := {this, data};
+
+    var initialData := new Rule[1];
+    data := initialData;
+    Repr := {initialData};
+
+    new;
+    Repr := Repr + {this};
   }
 
   method add(r: Rule)
@@ -576,30 +581,29 @@ class PolicyStore {
     ensures  Repr == old(Repr)   // remove never allocates
     ensures  rules == old(rules[..i]) + old(rules[i+1..])
   {
+    ghost var oldRules := rules;
     var j := i;
-    while j < count - 1 
-      invariant i <= j <= count - 1 
+    while j < count - 1
+      invariant i <= j <= count - 1
       invariant count == old(count)
+      invariant rules == oldRules
       invariant forall k :: 0 <= k < i ==> data[k] == old(data[k])
       invariant forall k :: i <= k < j ==> data[k] == old(data[k+1])
+      invariant forall k :: j < k < count ==> data[k] == old(data[k])
       modifies data
     {
       data[j] := data[j+1];
       j := j + 1;
     }
     count := count - 1;
-    rules := rules[..i] + rules[i+1..];
-  }
+    rules := oldRules[..i] + oldRules[i+1..];
+}
 
   method lookup(q: Request) returns (d: Decision)
     requires Valid()
     ensures  d == eval(Pol(rules), q)
   {
-    // TODO (handout §2.2): may either evaluate over rules directly, or do
-    // an imperative scan with a loop invariant; both are acceptable.
-    // Once you have a concrete representation, replace with e.g.:
     d := eval(Pol(data[..count]), q);
-    // d := NoMatch;
   }
 }
 
