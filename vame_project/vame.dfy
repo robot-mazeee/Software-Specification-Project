@@ -526,7 +526,7 @@ class PolicyStore {
     this in Repr &&
     data in Repr &&
     0 <= count <= data.Length &&
-    rules == data[..count]
+    rules == data[..count] 
   }
 
   constructor()
@@ -658,22 +658,43 @@ class DecisionCache {
   ghost var Repr: set<object>
   var store: PolicyStore
   var hits: bv32
-  // TODO (handout §2.3): concrete cache fields. For example,
-  //   var keys: array<Request>
-  //   var values: array<Decision>
-  //   var size: nat                       // entries currently in cache
-  //   ghost var entries: map<Request, Decision>  // abstract view
+  var keys: array<Request>
+  var values: array<Decision>
+  var size: nat                       // entries currently in cache
+  ghost var entries: map<Request, Decision>  // abstract view
 
   ghost predicate Valid()
-    reads this, Repr
+    reads this, Repr, keys, store, store.Repr, store.data, values
   {
-    // TODO (handout §2.3): the invariants of interest are
-    //   this in Repr && store in Repr
-    //   && store.Repr <= Repr && store.Valid()
-    //   && (concrete cache is consistent: size <= CACHE_CAPACITY, etc.)
-    //   && (ghost entries map matches concrete arrays)
-    //   && (forall q :: q in entries ==> entries[q] == eval(Pol(store.rules), q))
-    this in Repr && store in Repr
+    this in Repr 
+    && store in Repr
+    && keys in Repr
+    && values in Repr
+
+    && store.Repr <= Repr && store.Valid()
+    && store.Repr * {this, keys, values} == {}
+
+    // concrete cache is consistent
+    && size <= CACHE_CAPACITY 
+    && size <= keys.Length
+    && size <= values.Length
+
+    && keys.Length == CACHE_CAPACITY 
+    && values.Length == CACHE_CAPACITY 
+
+    // ghost entries map matches concrete arrays
+    // there is a key for every entry
+    && (forall q :: q in entries ==> 
+        exists i :: 0 <= i < size && keys[i] == q)
+    // every value stored is also in map
+    && (forall i :: 0 <= i < size ==> 
+        keys[i] in entries && values[i] == entries[keys[i]])
+    // concrete arrays have no duplicate keys (and maps too, by definition)
+    && (forall i, j :: 0 <= i < j < size && 0 <= j < size ==> 
+        keys[i] != keys[j])
+
+    // results in cache are the same as policy store computed results
+    && (forall q :: q in entries ==> entries[q] == eval(Pol(store.rules), q))
   }
 
   constructor(s: PolicyStore)
@@ -682,11 +703,19 @@ class DecisionCache {
     ensures  store == s
     ensures  hits == 0
     ensures  fresh(Repr - s.Repr)
+    ensures  keys.Length == CACHE_CAPACITY
+    ensures  values.Length == CACHE_CAPACITY
+    ensures  size == 0
+    ensures  |entries| == 0
   {
-    store := s;
-    hits  := 0;
-    Repr  := {this} + s.Repr;
-    // TODO (handout §2.3): initialise concrete cache as empty.
+    store  := s;
+    hits   := 0;
+    Repr   := {this} + s.Repr;
+    keys   := new Request[CACHE_CAPACITY];
+    values := new Decision[CACHE_CAPACITY];
+    Repr   := Repr + {keys, values};
+    size   := 0;
+    entries := map[];
   }
 
   method lookup(q: Request) returns (d: Decision)
@@ -694,26 +723,89 @@ class DecisionCache {
     modifies Repr
     ensures  Valid()
     ensures  d == eval(Pol(store.rules), q)
-    // TODO (handout §2.3): state the saturating hits post-condition.
-    // E.g. `ensures hits == old(hits) || hits == satInc(old(hits))` plus a
-    // tighter clause distinguishing miss-vs-hit if you want partial credit.
+
+    // hits
+    ensures (exists i :: 0 <= i < old(size) && old(keys[i]) == q)
+      ==> hits == satInc(old(hits))
+    ensures (forall i :: 0 <= i < old(size) ==> old(keys[i]) != q) 
+      ==> hits == old(hits)
   {
-    assume {:axiom} false; // TODO (handout §2.3): on hit, do `hits := satInc(hits);` and
-    // return the cached value. On miss, call store.lookup(q) and populate the cache.
-    d := store.lookup(q);
+    var found := false;
+    d := DenyD;
+
+    // lookup in cache
+    var i := 0;
+
+    while i < size && !found
+    decreases size - i
+    invariant 0 <= i <= size
+    invariant size <= keys.Length
+    invariant size <= values.Length
+    invariant store.Valid()
+
+    // found
+    // if found, the key has already been scanned
+    invariant found ==> exists j :: 0 <= j < i && keys[j] == q
+    // if not found, the key has not been scanned
+    invariant !found ==> forall j :: 0 <= j < i ==> keys[j] != q
+    // if found, the return is corresponds with the found entry
+    invariant found ==> exists j :: 0 <= j < i && keys[j] == q && values[j] == d
+
+    modifies {}
+    {
+      if q == keys[i]
+      {
+        found := true;
+        d := values[i];
+      }
+      i := i + 1;
+    }
+
+    // was not found in cache
+    if found {
+      hits := satInc(hits);
+    } 
+    else 
+    {
+      d := store.lookup(q);
+      if size < CACHE_CAPACITY 
+      {
+        keys[size] := q;
+        values[size] := d;
+        CoveragePreservedOnInsert(keys, size, q, d, entries);
+        entries := entries[q := d];
+        size := size + 1;
+      }
+    }
+  }
+
+  lemma StoreDisjoint()
+    requires Valid()
+    ensures this !in store.Repr
+    ensures keys !in store.Repr
+    ensures values !in store.Repr
+  {
+    assert this   !in (store.Repr * {this, keys, values});
+    assert keys   !in (store.Repr * {this, keys, values});
+    assert values !in (store.Repr * {this, keys, values});
   }
 
   method addRule(r: Rule)
     requires Valid()
     modifies Repr
-    ensures  Valid()
-    ensures  store.rules == old(store.rules) + [r]
-    // TODO (handout §2.3): post-condition stating the cache is empty after
-    // this call. E.g. `ensures forall q :: q !in entries` once you have the
-    // `entries` ghost map.
-  {
-    assume {:axiom} false; // TODO (handout §2.3): call store.add(r) and empty the cache.
+    ensures Valid()
+    ensures store.rules == old(store.rules) + [r]
+    ensures size == 0
+    ensures forall q :: q !in entries
+  { 
+    StoreDisjoint();
+
     store.add(r);
+
+    Repr := Repr + store.Repr;
+
+    size := 0;
+    entries := map[];
   }
 
   method removeRule(i: nat)
@@ -721,12 +813,17 @@ class DecisionCache {
     modifies Repr
     ensures  Valid()
     ensures  store.rules == old(store.rules[..i]) + old(store.rules[i+1..])
-    // TODO (handout §2.3): post-condition stating the cache is empty after
-    // this call — symmetric to addRule.
-    // ensures forall q :: q !in entries
+    ensures size == 0
+    ensures forall q :: q !in entries
   {
-    assume {:axiom} false; // TODO (handout §2.3): call store.remove(i) and empty the cache.
+    StoreDisjoint();
+
     store.remove(i);
+
+    Repr := Repr + store.Repr;
+
+    size := 0;
+    entries := map[];
   }
 }
 
