@@ -10,16 +10,24 @@ import sys
 
 from vame_api import VameCache
 
-
 def run(bundle: dict) -> dict:
     cache = VameCache(bundle["initialRules"])
     decisions: list[str] = []
 
     for operation in bundle["operations"]:
-        # TODO: dispatch "lookup", "add", and "remove" in their given order.
-        # For every lookup, append cache.lookup(operation["request"]) to
-        # decisions.  add/remove produce no output decisions.
-        raise NotImplementedError("implement the operation dispatch")
+        op = operation["op"]
+
+        if op == "lookup":
+            decisions.append(cache.lookup(operation["request"]))
+
+        elif op == "add":
+            cache.add_rule(operation["rule"])
+
+        elif op == "remove":
+            cache.remove_rule(operation["index"])
+
+        else:
+            raise ValueError("Invalid operation: " + op)
 
     return {"decisions": decisions}
 

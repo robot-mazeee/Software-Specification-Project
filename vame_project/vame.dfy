@@ -374,12 +374,14 @@ lemma normalize_is_nnf(m: Matcher)
 
 lemma allow_has_witness(p: Policy, q: Request)
   requires eval(p, q) == AllowD
-  ensures exists i :: 0 <= i < |p.rules|
+  ensures exists i ::
+    (0 <= i < |p.rules|
     && p.rules[i].Allow?
     && matches(ruleMatcher(p.rules[i]), q)
     && (forall j :: 0 <= j < |p.rules| ==>
-      !(p.rules[j].Deny? && rulePriority(p.rules[j]) >= rulePriority(p.rules[i])
-      && matches(ruleMatcher(p.rules[j]), q)))
+      !(p.rules[j].Deny?
+        && rulePriority(p.rules[j]) >= rulePriority(p.rules[i])
+        && matches(ruleMatcher(p.rules[j]), q))))
 {
   var winner := bestRule(p.rules, q);
   eval_allow_selects_allow(p, q);
