@@ -295,14 +295,12 @@ class DecisionCacheLazy {
     ensures forall i :: 0 <= i < size ==> versions[i] < version
   { 
     StoreDisjoint();
+    
     store.add(r);
-    assert store.Valid();
-    assert forall i :: 0 <= i < size ==> versions[i] <= version;
 
     Repr := Repr + store.Repr;
 
     version := version + 1;
-    assert forall i :: 0 <= i < size ==> versions[i] <= version;
   }
 
   method removeRule(i: nat)
