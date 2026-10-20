@@ -605,8 +605,37 @@ class PolicyStore {
   {
     d := eval(Pol(data[..count]), q);
   }
-}
 
+  // 2.4 PolicyStore construction correctness [1 val.]
+  // TODO (handout §2.4): implement this method.  It is called on a freshly
+  // constructed empty store.  Its loop invariant should state
+  // `rules == rs[..i]`.  Since add may resize the backing array, also retain
+  // `fresh(Repr - old(Repr))`; call `add` for each rule and then `lookup(q)`.
+  method buildAndLookup(rs: seq<Rule>, q: Request) returns (d: Decision)
+    requires Valid()
+    requires rules == []
+    modifies Repr
+    ensures Valid()
+    ensures rules == rs
+    ensures d == eval(Pol(rs), q)
+  {
+    var i := 0;
+
+    while i < |rs|
+      invariant 0 <= i <= |rs|
+      invariant Valid()
+      invariant count == i
+      invariant rules == rs[..i]
+      invariant fresh(Repr - old(Repr))
+    {
+      this.add(rs[i]);
+      i := i + 1;
+    }
+
+    d := this.lookup(q);
+    return d;
+  }
+}
 
 // -----------------------------------------------------------------------------
 // 2.3 DecisionCache class [3 val., + 1 val. bonus]
@@ -826,22 +855,3 @@ class DecisionCache {
     entries := map[];
   }
 }
-
-
-// -----------------------------------------------------------------------------
-// 2.4 Stress lemma [1 val.]
-//
-// State and prove: building a PolicyStore by adding rules rs[0], rs[1], ...
-// in order and then calling `lookup(q)` returns `eval(Pol(rs), q)`.
-//
-// The proof should be short — most of the work is making the specifications
-// of `add` and `lookup` strong enough that Dafny can compose them.
-// -----------------------------------------------------------------------------
-
-// TODO (handout §2.4): state and prove `stress_lemma`. The intended shape is:
-//
-//
-// The proof is one line — the point is that your specifications of `PolicyStore`
-// must be strong enough to make this compositionality fact fall out for free.
-// If you need more than `{}` as a body, revisit your `Valid()` predicate and
-// the postconditions of `add` / `lookup`.
