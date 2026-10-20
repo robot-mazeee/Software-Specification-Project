@@ -1,0 +1,2 @@
+[PASS] tests/operations-small.json: 4 lookup decisions
+[PASS] tests/operations-medium.json: 5 lookup decisions
